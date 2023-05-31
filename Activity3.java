@@ -32,7 +32,7 @@ public class Activity3 extends AppCompatActivity {
     FirebaseFirestore databaseReference;
     TextView confirm;
     EditText editText;
-    EditText numInput;
+    //EditText numInput;
     ProgressDialog progressDialog;
     Uri pdfUri;
     private static final int PERMISSION_REQUEST_CODE = 123;
@@ -48,7 +48,7 @@ public class Activity3 extends AppCompatActivity {
         uploadBtn = findViewById(R.id.uploadBtn);
         confirm = findViewById(R.id.confirmUpload);
         //String vNum = MainActivity.vNumber;
-        numInput = findViewById(R.id.vehicleNumber);
+        //numInput = findViewById(R.id.vehicleNumber);
         storageReference = FirebaseStorage.getInstance().getReference();
         databaseReference = FirebaseFirestore.getInstance();
         //btn = findViewById(R.id.btn);
@@ -94,7 +94,7 @@ public class Activity3 extends AppCompatActivity {
         final ProgressDialog progressDialog = new ProgressDialog(this);
         progressDialog.setTitle("File is loading...");
         progressDialog.show();
-        StorageReference reference = storageReference.child("Upload"+numInput.getText().toString()+".pdf");
+        StorageReference reference = storageReference.child("Upload"+MainActivity.vehNum.getText().toString()+".pdf");
         reference.putFile(data)
                 .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
                     @Override
@@ -107,8 +107,8 @@ public class Activity3 extends AppCompatActivity {
                         String pdfUrl = uri.toString();
                         //CollectionReference c = databaseReference.collection("VehicleFileStorage");
                         DocumentReference documentReference = databaseReference.collection("VehicleFileStorage")
-                                .document(numInput.getText().toString());
-                        PutPDF putPDF = new PutPDF(confirm.getText().toString(),uri.toString(),MainActivity.vNumber.toString());
+                                .document(MainActivity.vehNum.getText().toString());
+                        PutPDF putPDF = new PutPDF(editText.getText().toString(),uri.toString(),MainActivity.vNumber.toString());
                         documentReference.set(putPDF)
                                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                                     @Override
