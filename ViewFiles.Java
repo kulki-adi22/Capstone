@@ -6,11 +6,12 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.ListView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -20,10 +21,14 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ViewFiles extends AppCompatActivity {
+
     EditText vNumForGet;
     Button getBtn;
-    TextView tv;
+    ListView filesListView;
     FirebaseFirestore db;
 
     @Override
@@ -33,7 +38,7 @@ public class ViewFiles extends AppCompatActivity {
 
         vNumForGet = findViewById(R.id.getVehNumDisp);
         getBtn = findViewById(R.id.btnFetch);
-        tv = findViewById(R.id.dispURL);
+        filesListView = findViewById(R.id.filesListView);
         db = FirebaseFirestore.getInstance();
 
         getBtn.setOnClickListener(new View.OnClickListener() {
@@ -44,49 +49,43 @@ public class ViewFiles extends AppCompatActivity {
                 if (vehicleNumber.isEmpty()) {
                     Toast.makeText(ViewFiles.this, "Please enter a vehicle number", Toast.LENGTH_SHORT).show();
                 } else {
-                    fetchFileURL(vNumForGet.getText().toString());
+                    fetchFileURLs(vehicleNumber);
                 }
             }
         });
-    }
-    private void fetchFileURL(String vehicleNumber) {
-        CollectionReference c = db.collection("VehicleFileStorage");
-        c.document(vNumForGet.getText().toString()).get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+
+        filesListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
-            public void onSuccess(DocumentSnapshot documentSnapshot) {
-                //Log.d(documentSnapshot.getData().toString());
-                String s = documentSnapshot.toString();
-                int urlStartIndex = s.indexOf("url:") + 4; // Find the starting index of the URL
-                int urlEndIndex = s.indexOf(",", urlStartIndex); // Find the ending index of the URL
-                String urlString = s.substring(urlStartIndex, urlEndIndex).trim(); // Extract the URL
-                tv.setText(urlString);
-                openPDF(urlString);
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+                String fileURL = (String) adapterView.getItemAtPosition(position);
+                openPDF(fileURL);
             }
         });
     }
 
-//        private void fetchFileURL(String vehicleNumber) {
-//        db.collection("VehicleFileStorage")
-//                .document(vehicleNumber)
-//                .get()
-//                .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
-//                    @Override
-//                    public void onSuccess(DocumentSnapshot documentSnapshot) {
-//                        if (documentSnapshot.exists()) {
-//                            String fileURL = documentSnapshot.getString("fileURL");
-//                            openPDF(fileURL);
-//                        } else {
-//                            Toast.makeText(ViewFiles.this, "File not found for the entered vehicle number", Toast.LENGTH_SHORT).show();
-//                        }
-//                    }
-//                })
-//                .addOnFailureListener(new OnFailureListener() {
-//                    @Override
-//                    public void onFailure(Exception e) {
-//                        Toast.makeText(ViewFiles.this, "Failed to fetch file URL", Toast.LENGTH_SHORT).show();
-//                    }
-//                });
-//    }
+    private void fetchFileURLs(String vehicleNumber) {
+        CollectionReference collectionRef = db.collection("VehicleFileStorage");
+        collectionRef.document(vehicleNumber).get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot documentSnapshot) {
+                if (documentSnapshot.exists()) {
+                    UploadPDF uploadPDF = documentSnapshot.toObject(UploadPDF.class);
+                    if (uploadPDF != null) {
+                        List<String> fileURLs = new ArrayList<>();
+                        fileURLs.add(uploadPDF.getLicenseUrl());
+                        fileURLs.add(uploadPDF.getRcUrl());
+                        fileURLs.add(uploadPDF.getInsuranceUrl());
+
+                        ArrayAdapter<String> adapter = new ArrayAdapter<>(ViewFiles.this,
+                                android.R.layout.simple_list_item_1, fileURLs);
+                        filesListView.setAdapter(adapter);
+                    }
+                } else {
+                    Toast.makeText(ViewFiles.this, "No files found for the vehicle number", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
 
     private void openPDF(String fileURL) {
         try {
