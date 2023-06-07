@@ -2,11 +2,15 @@ package com.example.myapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +26,9 @@ public class MainActivity extends AppCompatActivity {
     FirebaseFirestore db, dbpush;
     NumPush vehObj;
     public static String vNumber,riderName;
+    private static final int REQUEST_IMAGE_CAPTURE = 1;
+    private Uri imageUri;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         vehObj = new NumPush();
@@ -65,6 +72,36 @@ public class MainActivity extends AppCompatActivity {
         });
 
         intent.putExtra("vNumber", vNumber[0]);
+
+        ImageButton cameraButton = findViewById(R.id.cameraButton);
+        cameraButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                openCamera();
+            }
+        });
     }
 
+    private void openCamera() {
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (takePictureIntent.resolveActivity(getPackageManager()) != null) {
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+        } else {
+            Toast.makeText(this, "No camera app available", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
+            // Image captured, you can do something with it here
+            Bundle extras = data.getExtras();
+            // Retrieve the captured image
+            if (extras != null) {
+                imageUri = data.getData();
+                // Do something with the image URI
+            }
+        }
+    }
 }
