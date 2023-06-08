@@ -68,17 +68,33 @@ public class ViewFiles extends AppCompatActivity {
         collectionRef.document(vehicleNumber).get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
             @Override
             public void onSuccess(DocumentSnapshot documentSnapshot) {
+                String vnum = documentSnapshot.getId();
                 if (documentSnapshot.exists()) {
                     UploadPDF uploadPDF = documentSnapshot.toObject(UploadPDF.class);
+
                     if (uploadPDF != null) {
+                        List<String> fileLabels = new ArrayList<>();
+                        fileLabels.add("View License of "+vnum);
+                        fileLabels.add("View RC of "+vnum);
+                        fileLabels.add("View Insurance of "+vnum);
+
                         List<String> fileURLs = new ArrayList<>();
                         fileURLs.add(uploadPDF.getLicenseUrl());
                         fileURLs.add(uploadPDF.getRcUrl());
                         fileURLs.add(uploadPDF.getInsuranceUrl());
 
                         ArrayAdapter<String> adapter = new ArrayAdapter<>(ViewFiles.this,
-                                android.R.layout.simple_list_item_1, fileURLs);
+                                android.R.layout.simple_list_item_1, fileLabels);
+
                         filesListView.setAdapter(adapter);
+
+                        filesListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                            @Override
+                            public void onItemClick(AdapterView<?> adapterView, View view, int position, long id) {
+                                String fileURL = fileURLs.get(position);
+                                openPDF(fileURL);
+                            }
+                        });
                     }
                 } else {
                     Toast.makeText(ViewFiles.this, "No files found for the vehicle number", Toast.LENGTH_SHORT).show();
@@ -86,6 +102,31 @@ public class ViewFiles extends AppCompatActivity {
             }
         });
     }
+
+
+//    private void fetchFileURLs(String vehicleNumber) {
+//        CollectionReference collectionRef = db.collection("VehicleFileStorage");
+//        collectionRef.document(vehicleNumber).get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+//            @Override
+//            public void onSuccess(DocumentSnapshot documentSnapshot) {
+//                if (documentSnapshot.exists()) {
+//                    UploadPDF uploadPDF = documentSnapshot.toObject(UploadPDF.class);
+//                    if (uploadPDF != null) {
+//                        List<String> fileURLs = new ArrayList<>();
+//                        fileURLs.add(uploadPDF.getLicenseUrl());
+//                        fileURLs.add(uploadPDF.getRcUrl());
+//                        fileURLs.add(uploadPDF.getInsuranceUrl());
+//
+//                        ArrayAdapter<String> adapter = new ArrayAdapter<>(ViewFiles.this,
+//                                android.R.layout.simple_list_item_1, fileURLs);
+//                        filesListView.setAdapter(adapter);
+//                    }
+//                } else {
+//                    Toast.makeText(ViewFiles.this, "No files found for the vehicle number", Toast.LENGTH_SHORT).show();
+//                }
+//            }
+//        });
+//    }
 
     private void openPDF(String fileURL) {
         try {
