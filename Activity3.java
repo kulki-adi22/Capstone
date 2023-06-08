@@ -11,7 +11,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnFailureListener;
@@ -26,112 +25,194 @@ import com.google.firebase.storage.UploadTask;
 
 public class Activity3 extends AppCompatActivity {
 
-    Button fileUpload;
-    Button uploadBtn,btn;
-    StorageReference storageReference;
-    FirebaseFirestore databaseReference;
-    TextView confirm;
-    EditText editText;
-    //EditText numInput;
+    Button uploadBtn, returnBtn;
+    EditText licenseEditText, rcEditText, insuranceEditText;
     ProgressDialog progressDialog;
-    Uri pdfUri;
-    private static final int PERMISSION_REQUEST_CODE = 123;
-    String vNumber;
-    boolean isStoragePermissionGranted;
+    Uri licenseUri, rcUri, insuranceUri;
+    StorageReference storageReference;
+    FirebaseFirestore firestore;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_3);
-        //fileUpload = findViewById(R.id.uploadFile);
-        editText = findViewById(R.id.editText);
+
         uploadBtn = findViewById(R.id.uploadBtn);
-        confirm = findViewById(R.id.confirmUpload);
-        //String vNum = MainActivity.vNumber;
-        //numInput = findViewById(R.id.vehicleNumber);
+        returnBtn = findViewById(R.id.returnBtn);
+        licenseEditText = findViewById(R.id.uploadLicense);
+        rcEditText = findViewById(R.id.uploadRCCard);
+        insuranceEditText = findViewById(R.id.uploadInsurance);
+
         storageReference = FirebaseStorage.getInstance().getReference();
-        databaseReference = FirebaseFirestore.getInstance();
-        //btn = findViewById(R.id.btn);
-        // Inside onCreate() method
-//        Intent intent = getIntent();
-//        vNumber = intent.getStringExtra("vNumber");
-
-        //String vN = numInput.getText().toString();
-
-        editText.setOnClickListener(new View.OnClickListener() {
+        firestore = FirebaseFirestore.getInstance();
+        Intent returnIntent = new Intent(Activity3.this,WelcomePage.class);
+        returnBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                selectPDF();
+                startActivity(returnIntent);
+            }
+        });
+        uploadBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                uploadFiles();
             }
         });
 
-    }
-    private void selectPDF() {
+        licenseEditText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectFile(1);
+            }
+        });
 
-        Intent intent = new Intent();
+        rcEditText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectFile(2);
+            }
+        });
+
+        insuranceEditText.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                selectFile(3);
+            }
+        });
+    }
+
+    private void selectFile(int fileType) {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("application/pdf");
-        intent.setAction(intent.ACTION_GET_CONTENT);
-        startActivityForResult(Intent.createChooser(intent, "PDF file select"),12);
-
+        startActivityForResult(Intent.createChooser(intent, "Select PDF"), fileType);
     }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 12 && resultCode == RESULT_OK && data != null && data.getData()!=null) {
-            editText.setText(data.getDataString().substring(data.getDataString().lastIndexOf("/")+1));
-            uploadBtn.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    uploadPDFFileFirebase(data.getData());
-                }
-            });
-        } else {
-            Toast.makeText(Activity3.this, "Please select a file", Toast.LENGTH_SHORT).show();
+        if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri selectedFileUri = data.getData();
+            switch (requestCode) {
+                case 1:
+                    licenseUri = selectedFileUri;
+                    licenseEditText.setText(getFileName(selectedFileUri));
+                    break;
+                case 2:
+                    rcUri = selectedFileUri;
+                    rcEditText.setText(getFileName(selectedFileUri));
+                    break;
+                case 3:
+                    insuranceUri = selectedFileUri;
+                    insuranceEditText.setText(getFileName(selectedFileUri));
+                    break;
+            }
         }
     }
 
-    private void uploadPDFFileFirebase(Uri data) {
-        final ProgressDialog progressDialog = new ProgressDialog(this);
-        progressDialog.setTitle("File is loading...");
-        progressDialog.show();
-        StorageReference reference = storageReference.child("Upload"+MainActivity.vehNum.getText().toString()+".pdf");
-        reference.putFile(data)
-                .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                        progressDialog.dismiss();
-                        Toast.makeText(Activity3.this,"File Uploaded",Toast.LENGTH_SHORT).show();
-                        Task<Uri> uriTask = taskSnapshot.getStorage().getDownloadUrl();
-                        while (!uriTask.isComplete());
-                        Uri uri = uriTask.getResult();
-                        String pdfUrl = uri.toString();
-                        //CollectionReference c = databaseReference.collection("VehicleFileStorage");
-                        DocumentReference documentReference = databaseReference.collection("VehicleFileStorage")
-                                .document(MainActivity.vehNum.getText().toString());
-                        PutPDF putPDF = new PutPDF(editText.getText().toString(),uri.toString(),MainActivity.vNumber.toString());
-                        documentReference.set(putPDF)
-                                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                                    @Override
-                                    public void onSuccess(Void aVoid) {
-                                        Toast.makeText(Activity3.this, "File Uploaded and URI saved", Toast.LENGTH_SHORT).show();
-                                    }
-                                })
-                                .addOnFailureListener(new OnFailureListener() {
-                                    @Override
-                                    public void onFailure(@NonNull Exception e) {
-                                        Toast.makeText(Activity3.this, "Failed to save URI", Toast.LENGTH_SHORT).show();
-                                    }
-                                });
-                    }
-                }).addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
-                    @Override
-                    public void onProgress(@NonNull UploadTask.TaskSnapshot snapshot) {
-                        double progress = (100*snapshot.getBytesTransferred())/snapshot.getTotalByteCount();
-                        progressDialog.setMessage("File Uploaded "+(int)progress+"%");
-
-                    }
-                });
+    private String getFileName(Uri uri) {
+        String filePath = uri.getPath();
+        return filePath.substring(filePath.lastIndexOf('/') + 1);
     }
 
-}
+    private void uploadFiles() {
+        if (licenseUri != null && rcUri != null && insuranceUri != null) {
+            progressDialog = new ProgressDialog(Activity3.this);
+            progressDialog.setTitle("Uploading files...");
+            progressDialog.show();
 
+            // Upload license file
+            StorageReference licenseRef = storageReference.child("licenses").child(getFileName(licenseUri));
+            licenseRef.putFile(licenseUri)
+                    .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        @Override
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            // License file uploaded successfully
+                            Task<Uri> licenseUriTask = taskSnapshot.getStorage().getDownloadUrl();
+                            licenseUriTask.addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                @Override
+                                public void onSuccess(Uri licenseDownloadUri) {
+                                    // Upload RC file
+                                    StorageReference rcRef = storageReference.child("rcs").child(getFileName(rcUri));
+                                    rcRef.putFile(rcUri)
+                                            .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                                @Override
+                                                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                                    // RC file uploaded successfully
+                                                    Task<Uri> rcUriTask = taskSnapshot.getStorage().getDownloadUrl();
+                                                    rcUriTask.addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                        @Override
+                                                        public void onSuccess(Uri rcDownloadUri) {
+                                                            // Upload insurance file
+                                                            StorageReference insuranceRef = storageReference.child("insurances").child(getFileName(insuranceUri));
+                                                            insuranceRef.putFile(insuranceUri)
+                                                                    .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                                                                        @Override
+                                                                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                                                                            // Insurance file uploaded successfully
+                                                                            Task<Uri> insuranceUriTask = taskSnapshot.getStorage().getDownloadUrl();
+                                                                            insuranceUriTask.addOnSuccessListener(new OnSuccessListener<Uri>() {
+                                                                                @Override
+                                                                                public void onSuccess(Uri insuranceDownloadUri) {
+                                                                                    // All files uploaded successfully, save details to Firestore
+                                                                                    UploadPDF uploadPDF = new UploadPDF(
+                                                                                            getFileName(licenseUri), licenseDownloadUri.toString(),
+                                                                                            getFileName(rcUri), rcDownloadUri.toString(),
+                                                                                            getFileName(insuranceUri), insuranceDownloadUri.toString()
+                                                                                    );
+
+                                                                                    String documentId = MainActivity.vehNum.getText().toString();
+                                                                                    firestore.collection("VehicleFileStorage")
+                                                                                            .document(documentId)
+                                                                                            .set(uploadPDF)
+                                                                                            .addOnSuccessListener(new OnSuccessListener<Void>() {
+                                                                                                @Override
+                                                                                                public void onSuccess(Void aVoid) {
+                                                                                                    progressDialog.dismiss();
+                                                                                                    Toast.makeText(Activity3.this, "Files uploaded successfully!", Toast.LENGTH_SHORT).show();
+                                                                                                }
+                                                                                            })
+                                                                                            .addOnFailureListener(new OnFailureListener() {
+                                                                                                @Override
+                                                                                                public void onFailure(@NonNull Exception e) {
+                                                                                                    progressDialog.dismiss();
+                                                                                                    Toast.makeText(Activity3.this, "Failed to upload files.", Toast.LENGTH_SHORT).show();
+                                                                                                }
+                                                                                            });
+                                                                                }
+                                                                            });
+                                                                        }
+                                                                    })
+                                                                    .addOnFailureListener(new OnFailureListener() {
+                                                                        @Override
+                                                                        public void onFailure(@NonNull Exception e) {
+                                                                            progressDialog.dismiss();
+                                                                            Toast.makeText(Activity3.this, "Failed to upload insurance file.", Toast.LENGTH_SHORT).show();
+                                                                        }
+                                                                    });
+                                                        }
+                                                    });
+                                                }
+                                            })
+                                            .addOnFailureListener(new OnFailureListener() {
+                                                @Override
+                                                public void onFailure(@NonNull Exception e) {
+                                                    progressDialog.dismiss();
+                                                    Toast.makeText(Activity3.this, "Failed to upload RC file.", Toast.LENGTH_SHORT).show();
+                                                }
+                                            });
+                                }
+                            });
+                        }
+                    })
+                    .addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            progressDialog.dismiss();
+                            Toast.makeText(Activity3.this, "Failed to upload license file.", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+        } else {
+            Toast.makeText(Activity3.this, "Please select all files.", Toast.LENGTH_SHORT).show();
+        }
+    }
+}
